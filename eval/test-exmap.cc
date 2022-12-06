@@ -11,6 +11,10 @@
 #include <thread>
 #include <vector>
 
+// sched affinity
+#include <sched.h>
+
+
 #define PERR(fmt) do { std::cout << "\u001b[31mError: \u001b[0m" << std::flush; perror(fmt); exit(EXIT_FAILURE); } while(0)
 #define OOPS(fmt) do { std::cout << "\u001b[33m" << fmt << "\u001b[0m" << std::endl; } while(0)
 #define QUIT(fmt) do { OOPS(fmt); exit(EXIT_FAILURE); } while(0)
@@ -18,6 +22,22 @@
 
 
 int main() {
+	
+/*	
+	// 
+	
+	// amount of CPUs
+	int numCPU = sysconf(_SC_NPROCESSORS_ONLN);
+	//declare array of bitmasks 
+	cpu_set_t *my_set= new cpu_set_t [numCPU];
+	for (int i ; i<=numCPU;i++){
+	//initialize with zero
+	CPU_ZERO (&my_set[i]);
+	//each set i, runs only on cpu i 
+	CPU_SET(i,&myset[i]);
+	}
+*/
+	//
 	int exmap_fd;
 	char* exmap;
 	struct exmap_ioctl_setup setup;
