@@ -26,7 +26,12 @@ int main() {
 	
 /*	
 	// amount of CPUs
-	int numCPU = sysconf(_SC_NPROCESSORS_ONLN);
+	int numCPU;
+	//hardware_concurrency might not work and return 0 for amount of max concurrent threads
+	if (!(numCPU = std::thread::hardware_concurrency())){
+	numCPU = sysconf(_SC_NPROCESSORS_ONLN)
+	}
+	
 	//declare array of bitmasks 
 	cpu_set_t *my_set= new cpu_set_t [numCPU];
 	for (int i ; i<=numCPU;i++){
