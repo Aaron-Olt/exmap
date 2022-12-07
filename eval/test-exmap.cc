@@ -13,6 +13,7 @@
 
 // sched affinity
 #include <sched.h>
+#include <pthread.h>
 
 
 #define PERR(fmt) do { std::cout << "\u001b[31mError: \u001b[0m" << std::flush; perror(fmt); exit(EXIT_FAILURE); } while(0)
@@ -24,8 +25,6 @@
 int main() {
 	
 /*	
-	// 
-	
 	// amount of CPUs
 	int numCPU = sysconf(_SC_NPROCESSORS_ONLN);
 	//declare array of bitmasks 
@@ -35,15 +34,23 @@ int main() {
 	CPU_ZERO (&my_set[i]);
 	//each set i, runs only on cpu i 
 	CPU_SET(i,&myset[i]);
+	
+	if (pthread_setaffinity_np(threads[i].native_handle(),sizeof(cpu_set_t), &myset[i])){
+	
+	}
+	std:cerr << "ERROR schedmask"<<"\n";
 	}
 */
-	//
+	
 	int exmap_fd;
 	char* exmap;
 	struct exmap_ioctl_setup setup;
 	std::vector<struct exmap_user_interface*> interfaces;
 	std::vector<std::thread> threads;
 	int thread_count = 8;
+//////////////////////	
+	// thread_count = numCPU ;
+//////////////////////	
 	std::atomic_bool stop_workers(false);
 	std::atomic_uint64_t alloc_free_count(0);
 	unsigned long long tlb_shootdown_count, prev_tlb_shootdown_count;
