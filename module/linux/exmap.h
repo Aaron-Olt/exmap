@@ -10,6 +10,9 @@
 
 #define EXMAP_USER_INTERFACE_PAGES 512
 
+#define getsoftinterupt _IOR('a', 'a', int32_t)
+#define gethardinterupt _IOR('b', 'a', int32_t)
+
 struct exmap_iov {
 	union {
 		uint64_t value;
