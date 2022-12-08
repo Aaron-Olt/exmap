@@ -32,7 +32,11 @@
 #include "driver.h"
 #include "ksyms.h"
 #include "config.h"
+//TEST STUFF
+#include <linux/preempt.h>
+    
 
+//TEST END
 
 static dev_t first;
 static struct cdev cdev;
@@ -761,6 +765,10 @@ static exmap_action_fptr exmap_action_array[] = {
 
 static long exmap_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 {
+  	int answer1 ;//= softirq_count();
+  	int answer2 = hardirq_count();
+  	int testanswer = 1;
+
 	struct exmap_ioctl_setup  setup;
 	struct exmap_action_params action;
 	struct exmap_ctx *ctx;
@@ -771,6 +779,26 @@ static long exmap_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 	ctx = (struct exmap_ctx*) file->private_data;
 
 	switch(cmd) {
+	
+	case getsoftinterupt:
+		answer1 = preempt_count();
+      		if (copy_to_user((int32_t *)arg, &answer1, sizeof(int))){
+        		pr_info("softinterrupt error");
+      		}
+      		if (answer1 != 0){
+      		pr_info	("ans1 = %d",answer1);
+      		}
+      		break;
+
+    	case gethardinterupt:
+      		if (copy_to_user((int32_t*)arg,&answer2 ,sizeof(int))){
+        		pr_info("hardinterrupt error");
+      		}
+      		//pr_info	("ans1 = %d",answer2);
+      		
+      		break;
+	
+	 
 	case EXMAP_IOCTL_SETUP:
 		if( copy_from_user(&setup, (struct exmap_ioctl_setup *) arg,
 						   sizeof(struct exmap_ioctl_setup)) )
