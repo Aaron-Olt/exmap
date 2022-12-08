@@ -765,9 +765,8 @@ static exmap_action_fptr exmap_action_array[] = {
 
 static long exmap_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 {
-  	int answer1 ;//= softirq_count();
+  	int answer1 = softirq_count();
   	int answer2 = hardirq_count();
-  	int testanswer = 1;
 
 	struct exmap_ioctl_setup  setup;
 	struct exmap_action_params action;
@@ -781,12 +780,8 @@ static long exmap_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 	switch(cmd) {
 	
 	case getsoftinterupt:
-		answer1 = preempt_count();
       		if (copy_to_user((int32_t *)arg, &answer1, sizeof(int))){
         		pr_info("softinterrupt error");
-      		}
-      		if (answer1 != 0){
-      		pr_info	("ans1 = %d",answer1);
       		}
       		break;
 
