@@ -130,7 +130,9 @@ void push_page(struct page* page, struct page_bundle* bundle, struct exmap_ctx* 
 }
 
 struct page* pop_page(struct page_bundle* bundle, struct exmap_ctx* ctx) {
-again:
+// CHANGE replaced goto statement with do while	
+//again:
+	do{
 	/* pr_info("pop_page: bundle %lx, count %lu, global %lx", bundle, bundle->count, global_free_list); */
 	if (bundle->count > 0) {
 		void* stack_page_virt = page_to_virt(bundle->stack);
@@ -145,7 +147,8 @@ again:
 	}
 
 	*bundle = pop_bundle(ctx);
-	goto again;
+	}while (1)
+	//goto again;
 }
 
 
