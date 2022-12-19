@@ -772,6 +772,7 @@ static long exmap_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 {
   	int answer1 = softirq_count();
   	int answer2 = hardirq_count();
+	preemt_disable();
 
 	struct exmap_ioctl_setup  setup;
 	struct exmap_action_params action;
@@ -801,16 +802,20 @@ static long exmap_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 	 
 	case EXMAP_IOCTL_SETUP:
 		if( copy_from_user(&setup, (struct exmap_ioctl_setup *) arg,
-						   sizeof(struct exmap_ioctl_setup)) )
+						   sizeof(struct exmap_ioctl_setup)) ){
+			preemt_enable();				
 			return -EFAULT;
+						   }
 
 		/* process data and execute command */
 		pr_info("setup.buffer_size = %ld", setup.buffer_size);
 
 		// Interfaces can only be initialized once
 		/* pr_info("setup.interfaces = %p", ctx->interfaces); */
-		if (ctx->interfaces)
+		if (ctx->interfaces){
+			preemt_enable();
 			return -EBUSY;
+		}
 
 		if (setup.fd >= 0) {
 			struct file *file = fget(setup.fd);
@@ -842,6 +847,7 @@ static long exmap_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 			if (false) {
 			out_fput:
 				fput(file);
+				preemt_enable();
 				return -EBADF;
 
 			}
@@ -856,8 +862,10 @@ static long exmap_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 		ctx->buffer_size += setup.buffer_size;
 		ctx->alloc_count = 0;
 
-		if (setup.max_interfaces > 256)
+		if (setup.max_interfaces > 256){
+			preemt_enable();
 			return -EINVAL;
+		}
 
 		ctx->max_interfaces = setup.max_interfaces;
 		/* warn if more interfaces are created than there are CPUs */
@@ -877,6 +885,7 @@ static long exmap_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 		ctx->interfaces = __vmalloc_array(setup.max_interfaces, sizeof(struct exmap_interface), gfp_flags);
 		if (!ctx->interfaces) {
 			pr_info("interfaces failed");
+			preemt_enable();
 			return -ENOMEM;
 		}
 
@@ -888,6 +897,7 @@ static long exmap_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 												first_online_node, NULL);
 		if (!ctx->contig_pages) {
 			pr_info("allocation of %lu contiguous pages failed", setup.buffer_size);
+			preemt_enable();
 			return -ENOMEM;
 		}
 		ctx->contig_counter = 0;
@@ -909,6 +919,7 @@ static long exmap_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 				// BUG_ON(!interface->usermem); // Lost Memory....
 				pr_info("usermem failed");
 				ctx->interfaces = NULL;
+				preemt_enable();
 				return -ENOMEM;
 			}
 
@@ -931,84 +942,35 @@ static long exmap_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 
 	case EXMAP_IOCTL_ACTION:
-		if (unlikely(ctx->interfaces == NULL))
+		if (unlikely(ctx->interfaces == NULL)){
+			preemt_enable();
 			return -EBADF;
-
+		}
 		if( copy_from_user(&action, (struct exmap_action_params *) arg,
-						   sizeof(struct exmap_action_params)) )
+						   sizeof(struct exmap_action_params)) ){
+			preemt_enable();
 			return -EFAULT;
+						   }
 
-		if (unlikely(action.interface >= ctx->max_interfaces))
+		if (unlikely(action.interface >= ctx->max_interfaces)){
+				preemt_enable();
 			return -EINVAL;
-
+		}
 		if (action.opcode > ARRAY_SIZE(exmap_action_array)
-			|| !exmap_action_array[action.opcode])
+			|| !exmap_action_array[action.opcode]){
+					preemt_enable();
 			return -EINVAL;
-
+			}
 		mutex_lock(&(ctx->interfaces[action.interface].interface_lock));
 		rc = exmap_action_array[action.opcode](ctx, &action);
 		mutex_unlock(&(ctx->interfaces[action.interface].interface_lock));
 		break;
 	default:
+		preemt_enable();
 		return -EINVAL;
 	}
-
+		preemt_enable();
 	return rc;
-}
-
-ssize_t exmap_alloc_iter(struct exmap_ctx *ctx, struct exmap_interface *interface, struct iov_iter *iter) {
-	ssize_t total_nr_pages = iov_iter_count(iter) >> PAGE_SHIFT;
-	struct iov_iter_state iter_state;
-	int rc, rc_all = 0;
-
-	iov_iter_save_state(iter, &iter_state);
-	while (iov_iter_count(iter)) {
-		struct iovec iovec = iov_iter_iovec(iter);
-		char __user* addr = iovec.iov_base;
-		ssize_t size = iovec.iov_len;
-
-		struct exmap_pages_ctx pages_ctx = {
-			.ctx = ctx,
-			.interface = interface,
-			.pages_count = size,
-		};
-
-		//if (iovec.iov_len != iov_iter_count(iter)) {
-		//	pr_info("exmap: BUG we currently support only iovectors of length 1\n");
-		//	return -EINVAL;
-		//}
-		// pr_info("iov: %lx + %ld (of %ld)\n", (uintptr_t)addr, size >> PAGE_SHIFT, iov_iter_count(iter));
-
-		if (ctx->exmap_vma->vm_start > (uintptr_t) addr) {
-			pr_info("vmstart");
-			return -EINVAL;
-		}
-		if (ctx->exmap_vma->vm_end < (uintptr_t) addr) {
-			pr_info("vmend");
-			return -EINVAL;
-		}
-		if (((uintptr_t) addr) & ~PAGE_MASK) // Not aligned start
-		{
-			pr_info("addr");
-			return -EINVAL;
-		}
-		if (((uintptr_t) size) & ~PAGE_MASK) { // Not aligned end
-			pr_info("size");
-			return -EINVAL;
-		}
-
-		rc = exmap_insert_pages(ctx->exmap_vma, (uintptr_t) addr,
-								(size >> PAGE_SHIFT),
-								&pages_ctx, NULL,NULL);
-		if (rc < 0) return rc;
-		rc_all += rc;
-
-		iov_iter_advance(iter, iovec.iov_len);
-	}
-
-	iov_iter_restore(iter, &iter_state);
-
-	return rc_all;
 }
 
 
