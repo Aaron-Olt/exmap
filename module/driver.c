@@ -114,7 +114,7 @@ struct page_bundle pop_bundle(struct exmap_ctx* ctx) {
 void push_page(struct page* page, struct page_bundle* bundle, struct exmap_ctx* ctx) {
 	/* pr_info("push_page: %lx, bundle %lx, count %lu, global %lx", page, bundle, bundle->count, global_free_list); */
 	//TEST
-	preempt_disable();
+
 	if (!bundle->stack) {
 		bundle->stack = page;
 		return;
@@ -129,13 +129,13 @@ void push_page(struct page* page, struct page_bundle* bundle, struct exmap_ctx* 
 		bundle->stack = NULL;
 	}
 	//TEST
-	preempt_enable();
+
 }
 
 struct page* pop_page(struct page_bundle* bundle, struct exmap_ctx* ctx) {
 
 again:
-	preempt_disable();
+	
 	/* pr_info("pop_page: bundle %lx, count %lu, global %lx", bundle, bundle->count, global_free_list); */
 	if (bundle->count > 0) {
 		void* stack_page_virt = page_to_virt(bundle->stack);
@@ -150,7 +150,6 @@ again:
 	}
 
 	*bundle = pop_bundle(ctx);
-	preempt_enable();
 	goto again;
 }
 
