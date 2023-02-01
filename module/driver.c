@@ -35,6 +35,7 @@
 //TEST STUFF
 #include <linux/preempt.h>
     
+DEFINE_PER_CPU(struct  page_bundle , per_cpu_local_pages)
 
 //TEST END
 
