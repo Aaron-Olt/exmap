@@ -827,21 +827,27 @@ static long exmap_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 			struct file *file = fget(setup.fd);
 			struct inode *inode;
 
-			if (!file) goto out_fput;
+			if (!file){
+			preempt_enable();
+			goto out_fput;
+			}
 
 			if (!(file->f_flags & O_DIRECT)) {
 				pr_err("Please give an O_DIRECT fd");
+				preempt_enable();
 				goto out_fput;
 			}
 
 			if (!(file->f_mode & FMODE_READ)) {
 				pr_err("Please give a readable fd");
+				preempt_enable();
 				goto out_fput;
 			}
 
 			inode = file_inode(file);
 			if (!S_ISBLK(inode->i_mode)) {
 				pr_err("Only support for block devices at the moment");
+				preempt_enable();
 				goto out_fput;
 			}
 
@@ -938,25 +944,48 @@ static long exmap_ioctl (struct file *file, unsigned int cmd, unsigned long arg)
 
 			interface->local_pages.count = 0;
 			
+			
+			for (int i =0;i<num_online_cpus();i++){
+			per_cpu(per_cpu_local_pages,i).count=0;
+			}
+			
 			/////////////////////////////////
+			/*
 			get_cpu_var(per_cpu_local_pages).count=0;
 			put_cpu_var(per_cpu_local_pages);
+			*/
 			/////////////////////////////////
 			
 #ifdef USE_CONTIG_ALLOC
 			interface->local_pages.stack = exmap_alloc_page_contig(ctx);
 			
 			/////////////////////////////////
+			/*
 			get_cpu_var(per_cpu_local_pages).stack=exmap_alloc_page_contig(ctx);
 			put_cpu_var(per_cpu_local_pages);
+			*/
 			/////////////////////////////////
+			
+			
+			for (int i =0;i<num_online_cpus();i++){
+			per_cpu(per_cpu_local_pages,i).stack=exmap_alloc_page_contig(ctx);
+			}
+			
+			
 #else
 			interface->local_pages.stack = exmap_alloc_page_system();
 			
 			/////////////////////////////////
+			/*
 			get_cpu_var(per_cpu_local_pages).stack = exmap_alloc_page_system();
 			put_cpu_var(per_cpu_local_pages);
+			*/
 			/////////////////////////////////
+			
+			for (int i =0;i<num_online_cpus();i++){
+			per_cpu(per_cpu_local_pages,i).stack = exmap_alloc_page_system();
+			}
+			
 			
 			ctx->alloc_count++;
 #endif

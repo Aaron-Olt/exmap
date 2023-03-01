@@ -5,7 +5,7 @@ KDIR ?= /lib/modules/`uname -r`/build
 
 obj-m = exmap.o
 exmap-m = driver.o memory.o ksyms.o
-ccflags-y += -g 
+ccflags-y += -g -w 
 
 kbuild = -C $(KDIR) M=$$PWD $@
 
